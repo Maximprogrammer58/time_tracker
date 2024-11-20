@@ -19,6 +19,25 @@ USER_DATABASE = {
     'admin': 'password123',  # Логин: admin, Пароль: password123
 }
 
+def initialize_database():
+    conn = sqlite3.connect('app_tracker.db')
+    cursor = conn.cursor()
+
+    # Создаем таблицу, если она не существует
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS app_usage (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time TEXT,
+            end_time TEXT,
+            results TEXT
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+    print("База данных и таблица инициализированы.")
+
+
 class AuthWindow(QWidget):
     def __init__(self, on_login_success):
         super().__init__()
@@ -285,16 +304,6 @@ class MeasurementApp(QWidget):
         conn = sqlite3.connect('app_tracker.db')
         cursor = conn.cursor()
 
-        # Создаем таблицу, если она не существует
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS app_usage (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                start_time TEXT,
-                end_time TEXT,
-                results TEXT
-            )
-        ''')
-
         end_time = datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S")
         # Формируем словарь с результатами
         formatted_results = {app: time for app, time in results.items()}
@@ -323,5 +332,6 @@ class MainApp:
         sys.exit(self.app.exec_())
 
 if __name__ == '__main__':
+    initialize_database()
     main_app = MainApp()
     main_app.run()
