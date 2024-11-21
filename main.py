@@ -11,24 +11,24 @@ import threading
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QLineEdit, QMessageBox,
-    QTabWidget, QHBoxLayout, QDialog, QTextEdit, QListWidget
+    QTabWidget, QHBoxLayout, QDialog, QTextEdit, QListWidget, QProgressBar, QListWidgetItem
 )
 from PyQt5.QtCore import Qt, QTimer
 
 USER_DATABASE = {
-    'admin': 'password123',  # Логин: admin, Пароль: password123
+    '': '',
 }
 
 def initialize_database():
     conn = sqlite3.connect('app_tracker.db')
     cursor = conn.cursor()
 
-    # Создаем таблицу, если она не существует
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS app_usage (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             start_time TEXT,
             end_time TEXT,
+            total_time TEXT,
             results TEXT
         )
     ''')
@@ -36,7 +36,6 @@ def initialize_database():
     conn.commit()
     conn.close()
     print("База данных и таблица инициализированы.")
-
 
 class AuthWindow(QWidget):
     def __init__(self, on_login_success):
@@ -46,7 +45,7 @@ class AuthWindow(QWidget):
 
     def initUI(self):
         self.setWindowTitle('Авторизация')
-        self.setGeometry(100, 100, 250, 120)  # Уменьшение размера окна
+        self.setGeometry(100, 100, 250, 120)
 
         layout = QVBoxLayout()
 
@@ -72,7 +71,7 @@ class AuthWindow(QWidget):
         password = self.password_input.text()
 
         if USER_DATABASE.get(username) == password:
-            self.on_login_success()  # Вход успешен
+            self.on_login_success()
             self.close()
         else:
             QMessageBox.warning(self, 'Ошибка', 'Неверный логин или пароль.')
@@ -82,6 +81,7 @@ class AppTracker:
         self.app_summaries = {}
         self.running = False
         self.start_time = datetime.datetime.now()
+        self.total_time_seconds = 0  # Инициализация общего времени
         self.user = os.getlogin()
         print(self.data_time(), "Старт, пользователь:", self.user)
 
@@ -112,6 +112,7 @@ class AppTracker:
                         if name_aw not in self.app_summaries:
                             self.app_summaries[name_aw] = 0
                         self.app_summaries[name_aw] += 1
+                        self.total_time_seconds += 1  # Увеличение общего времени
                         break
 
                 time.sleep(1)
@@ -126,7 +127,7 @@ class AppTracker:
 
     def stop_tracking(self):
         self.running = False
-        return self.print_summary()  # Возвращаем результаты
+        return self.print_summary()
 
 class MeasurementApp(QWidget):
     def __init__(self):
@@ -140,10 +141,9 @@ class MeasurementApp(QWidget):
 
     def initUI(self):
         self.setWindowTitle('Замер времени')
-        self.setGeometry(100, 100, 500, 300)  # Уменьшение размера окна
+        self.setGeometry(100, 100, 800, 600)
         self.setStyleSheet("background-color: #ffffff;")
 
-        # Создаем вкладки
         self.tabs = QTabWidget(self)
         self.measurement_tab = QWidget()
         self.data_tab = QWidget()
@@ -166,7 +166,7 @@ class MeasurementApp(QWidget):
 
         self.startButton.setStyleSheet("""
             QPushButton {
-                background-color: #28a745; /* Зеленый */
+                background-color: #28a745;
                 color: white;
                 padding: 10px;
                 font-size: 16px;
@@ -174,13 +174,13 @@ class MeasurementApp(QWidget):
                 border-radius: 5px;
             }
             QPushButton:hover {
-                background-color: #218838; /* Темно-зеленый */
+                background-color: #218838;
             }
         """)
 
         self.endButton.setStyleSheet("""
             QPushButton {
-                background-color: #dc3545; /* Красный */
+                background-color: #dc3545;
                 color: white;
                 padding: 10px;
                 font-size: 16px;
@@ -188,17 +188,15 @@ class MeasurementApp(QWidget):
                 border-radius: 5px;
             }
             QPushButton:hover {
-                background-color: #c82333; /* Темно-красный */
+                background-color: #c82333;
             }
         """)
 
-        self.endButton.setVisible(False)  # Скрываем кнопку "Закончить" изначально
+        self.endButton.setVisible(False)
 
-        # Подключаем кнопки к методам
         self.startButton.clicked.connect(self.startMeasurement)
         self.endButton.clicked.connect(self.endMeasurement)
 
-        # Создаем таблицу
         self.table = QTableWidget(self)
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Приложение", "Время"])
@@ -207,15 +205,15 @@ class MeasurementApp(QWidget):
         layout.addWidget(self.endButton)
         layout.addWidget(self.startButton)
         layout.addWidget(self.table)
-        layout.setAlignment(Qt.AlignTop)  # Центрируем кнопки сверху
+        layout.setAlignment(Qt.AlignTop)
         self.measurement_tab.setLayout(layout)
 
     def init_data_tab(self):
         layout = QVBoxLayout()
 
         self.data_table = QTableWidget(self)
-        self.data_table.setColumnCount(3)
-        self.data_table.setHorizontalHeaderLabels(["Время начала", "Время конца", "Действия"])
+        self.data_table.setColumnCount(4)
+        self.data_table.setHorizontalHeaderLabels(["Время начала", "Время конца", "Общее время", "Действия"])
         self.data_table.setRowCount(0)
 
         self.load_data()
@@ -224,27 +222,40 @@ class MeasurementApp(QWidget):
         self.data_tab.setLayout(layout)
 
     def load_data(self):
-        self.data_table.setRowCount(0)  # Очищаем таблицу перед загрузкой
+        self.data_table.setRowCount(0)
         conn = sqlite3.connect('app_tracker.db')
         cursor = conn.cursor()
 
-        cursor.execute('SELECT start_time, end_time, results FROM app_usage')
+        cursor.execute('SELECT start_time, end_time, total_time, results FROM app_usage')
         rows = cursor.fetchall()
 
         for row in rows:
-            start_time, end_time, results = row
+            start_time, end_time, total_time, results = row
             row_position = self.data_table.rowCount()
             self.data_table.insertRow(row_position)
             self.data_table.setItem(row_position, 0, QTableWidgetItem(start_time))
             self.data_table.setItem(row_position, 1, QTableWidgetItem(end_time))
+            self.data_table.setItem(row_position, 2, QTableWidgetItem(total_time))
 
             details_button = QPushButton("Подробнее")
-            details_button.clicked.connect(lambda checked, r=results: self.show_details(r))
-            self.data_table.setCellWidget(row_position, 2, details_button)
+            details_button.clicked.connect(lambda checked, r=results, t=total_time: self.show_details(r, t))
+            self.data_table.setCellWidget(row_position, 3, details_button)
 
         conn.close()
 
-    def show_details(self, results):
+    def time_to_seconds(self, time_str):
+        hours, minutes, seconds = 0, 0, 0
+        if 'ч' in time_str:
+            hours = int(time_str.split('ч')[0].strip())
+            time_str = time_str.split('ч')[1]
+        if 'мин' in time_str:
+            minutes = int(time_str.split('мин')[0].strip())
+            time_str = time_str.split('мин')[1]
+        if 'сек' in time_str:
+            seconds = int(time_str.split('сек')[0].strip())
+        return hours * 3600 + minutes * 60 + seconds
+
+    def show_details(self, results, total_time):
         details_dialog = QDialog(self)
         details_dialog.setWindowTitle("Детали использования")
         details_dialog.setGeometry(100, 100, 400, 300)
@@ -253,8 +264,22 @@ class MeasurementApp(QWidget):
         details_list = QListWidget()
 
         parsed_results = json.loads(results)
+        total_time_seconds = self.time_to_seconds(total_time)
+
         for app, time in parsed_results.items():
-            details_list.addItem(f"{app}: {time}")
+            app_time_seconds = self.time_to_seconds(time)
+
+            item = QListWidgetItem(f"{app}: {time}")
+            details_list.addItem(item)
+
+            progress_bar = QProgressBar()
+            if total_time_seconds > 0:
+                percentage = (app_time_seconds / total_time_seconds) * 100
+                progress_bar.setValue(int(percentage))
+            else:
+                progress_bar.setValue(0)
+            details_list.addItem(QListWidgetItem())
+            details_list.setItemWidget(details_list.item(details_list.count() - 1), progress_bar)
 
         layout.addWidget(details_list)
         details_dialog.setLayout(layout)
@@ -262,22 +287,20 @@ class MeasurementApp(QWidget):
 
     def startMeasurement(self):
         if self.tracker is None or not self.tracker.running:
-            self.tracker = AppTracker()  # Создаем новый экземпляр AppTracker
-            self.startButton.setVisible(False)  # Скрываем кнопку "Начать замер"
-            self.endButton.setVisible(True)  # Показываем кнопку "Закончить"
+            self.tracker = AppTracker()
+            self.startButton.setVisible(False)
+            self.endButton.setVisible(True)
 
-            # Запускаем отслеживание в отдельном потоке
             self.tracker_thread = threading.Thread(target=self.tracker.start_tracking)
             self.tracker_thread.start()
 
-            # Запускаем таймер для обновления таблицы
-            self.timer.start(60000)  # Каждые 1 минуту
-            self.data_timer.start(60000)  # Каждые 1 минуту для обновления данных
+            self.timer.start(10000)
+            self.data_timer.start(10000)
 
     def update_table(self):
         if self.tracker and self.tracker.running:
             summaries = self.tracker.print_summary()
-            self.table.setRowCount(0)  # Очищаем таблицу
+            self.table.setRowCount(0)
             for app, time in summaries.items():
                 row_position = self.table.rowCount()
                 self.table.insertRow(row_position)
@@ -286,32 +309,31 @@ class MeasurementApp(QWidget):
 
     def endMeasurement(self):
         if self.tracker:
-            self.timer.stop()  # Останавливаем таймер
-            self.data_timer.stop()  # Останавливаем таймер для данных
-            results = self.tracker.stop_tracking()  # Останавливаем отслеживание
+            self.timer.stop()
+            self.data_timer.stop()
+            results = self.tracker.stop_tracking()
 
             # Записываем данные в базу данных
             self.save_to_database(results)
 
-            self.load_data()  # Обновляем данные в таблице
+            self.load_data()
 
-            self.startButton.setVisible(True)  # Показываем кнопку "Начать замер"
-            self.endButton.setVisible(False)  # Скрываем кнопку "Закончить"
-            self.tracker_thread.join()  # Ждем завершения потока
-            self.tracker = None  # Сбрасываем трекер
+            self.startButton.setVisible(True)
+            self.endButton.setVisible(False)
+            self.tracker_thread.join()
+            self.tracker = None
 
     def save_to_database(self, results):
         conn = sqlite3.connect('app_tracker.db')
         cursor = conn.cursor()
 
-        end_time = datetime.datetime.now().strftime("%d.%m.%y %H:%M:%S")
-        # Формируем словарь с результатами
-        formatted_results = {app: time for app, time in results.items()}
+        end_time = datetime.datetime.now()
+        total_time = self.tracker.format_time(self.tracker.total_time_seconds)  # Получаем общее время из tracker
 
         cursor.execute('''
-            INSERT INTO app_usage (start_time, end_time, results)
-            VALUES (?, ?, ?)
-        ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time, json.dumps(formatted_results)))
+            INSERT INTO app_usage (start_time, end_time, total_time, results)
+            VALUES (?, ?, ?, ?)
+        ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time, json.dumps(results)))
 
         conn.commit()
         conn.close()
