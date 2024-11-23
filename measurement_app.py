@@ -6,6 +6,7 @@ import sqlite3
 import matplotlib.pyplot as plt
 
 from app_tracker import AppTracker
+from database import execute_query
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
@@ -111,11 +112,8 @@ class MeasurementApp(QWidget):
 
     def load_data(self):
         self.data_table.setRowCount(0)
-        conn = sqlite3.connect('app_tracker.db')
-        cursor = conn.cursor()
 
-        cursor.execute('SELECT start_time, end_time, total_time, results FROM app_usage')
-        rows = cursor.fetchall()
+        rows = execute_query('SELECT start_time, end_time, total_time, results FROM app_usage')
 
         for row in rows:
             start_time, end_time, total_time, results = row
@@ -128,8 +126,6 @@ class MeasurementApp(QWidget):
             details_button = QPushButton("Подробнее")
             details_button.clicked.connect(lambda checked, r=results, t=total_time: self.show_details(r, t))
             self.data_table.setCellWidget(row_position, 3, details_button)
-
-        conn.close()
 
     def init_analytics_tab(self):
         layout = QVBoxLayout()
@@ -185,15 +181,11 @@ class MeasurementApp(QWidget):
             return
 
         self.analytics_table.setRowCount(0)
-        conn = sqlite3.connect('app_tracker.db')
-        cursor = conn.cursor()
 
-        cursor.execute('''
+        rows = execute_query('''
                 SELECT start_time, end_time, total_time FROM app_usage 
                 WHERE start_time >= ? AND end_time <= ?
             ''', (start_date + " 00:00:00", end_date + " 23:59:59"))
-
-        rows = cursor.fetchall()
 
         total_time_data = []
         labels = []
@@ -208,8 +200,6 @@ class MeasurementApp(QWidget):
             labels.append(start_time + " - " + end_time)
             total_time_data.append(self.time_to_seconds(total_time))
 
-        conn.close()
-
         if total_time_data:
             plt.figure(figsize=(10, 6))
             plt.bar(labels, total_time_data, color='skyblue')
@@ -219,7 +209,6 @@ class MeasurementApp(QWidget):
             plt.xticks(rotation=45, ha='right')
             plt.tight_layout()
             plt.show()
-
 
     def time_to_seconds(self, time_str):
         hours, minutes, seconds = 0, 0, 0
@@ -291,9 +280,7 @@ class MeasurementApp(QWidget):
             self.data_timer.stop()
             results = self.tracker.stop_tracking()
 
-            # Записываем данные в базу данных
             self.save_to_database(results)
-
             self.load_data()
 
             self.startButton.setVisible(True)
@@ -302,18 +289,12 @@ class MeasurementApp(QWidget):
             self.tracker = None
 
     def save_to_database(self, results):
-        conn = sqlite3.connect('app_tracker.db')
-        cursor = conn.cursor()
-
         end_time = datetime.datetime.now()
-        total_time = self.tracker.format_time(self.tracker.total_time_seconds)  # Получаем общее время из tracker
+        total_time = self.tracker.format_time(self.tracker.total_time_seconds)
 
-        cursor.execute('''
+        execute_query('''
             INSERT INTO app_usage (start_time, end_time, total_time, results)
             VALUES (?, ?, ?, ?)
         ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time,
-              json.dumps(results)))
-
-        conn.commit()
-        conn.close()
+              json.dumps(results)), fetch=False)
         print("Данные сохранены в базу данных.")
