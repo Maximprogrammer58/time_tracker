@@ -8,16 +8,18 @@ import os
 import json
 import sqlite3
 import threading
+import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QPushButton, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QLineEdit, QMessageBox,
-    QTabWidget, QHBoxLayout, QDialog, QTextEdit, QListWidget, QProgressBar, QListWidgetItem
+    QTabWidget, QHBoxLayout, QDialog, QTextEdit, QListWidget, QProgressBar, QListWidgetItem, QDateEdit
 )
 from PyQt5.QtCore import Qt, QTimer
 
 USER_DATABASE = {
     '': '',
 }
+
 
 def initialize_database():
     conn = sqlite3.connect('app_tracker.db')
@@ -36,6 +38,7 @@ def initialize_database():
     conn.commit()
     conn.close()
     print("База данных и таблица инициализированы.")
+
 
 class AuthWindow(QWidget):
     def __init__(self, on_login_success):
@@ -75,6 +78,7 @@ class AuthWindow(QWidget):
             self.close()
         else:
             QMessageBox.warning(self, 'Ошибка', 'Неверный логин или пароль.')
+
 
 class AppTracker:
     def __init__(self):
@@ -129,6 +133,7 @@ class AppTracker:
         self.running = False
         return self.print_summary()
 
+
 class MeasurementApp(QWidget):
     def __init__(self):
         super().__init__()
@@ -147,12 +152,15 @@ class MeasurementApp(QWidget):
         self.tabs = QTabWidget(self)
         self.measurement_tab = QWidget()
         self.data_tab = QWidget()
+        self.analytics_tab = QWidget()
 
         self.tabs.addTab(self.measurement_tab, "Замер")
         self.tabs.addTab(self.data_tab, "Данные")
+        self.tabs.addTab(self.analytics_tab, "Аналитика")
 
         self.init_measurement_tab()
         self.init_data_tab()
+        self.init_analytics_tab()
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
@@ -242,6 +250,96 @@ class MeasurementApp(QWidget):
             self.data_table.setCellWidget(row_position, 3, details_button)
 
         conn.close()
+
+    def init_analytics_tab(self):
+        layout = QVBoxLayout()
+
+        self.start_date_label = QLabel('Дата начала:', self)
+        self.start_date_input = QDateEdit(self)
+        self.start_date_input.setCalendarPopup(True)
+        self.start_date_input.setDisplayFormat("dd-MM-yyyy")
+        self.start_date_input.setStyleSheet("font-size: 16px; padding: 5px;")
+
+        self.end_date_label = QLabel('Дата конца:', self)
+        self.end_date_input = QDateEdit(self)
+        self.end_date_input.setCalendarPopup(True)
+        self.end_date_input.setDisplayFormat("dd-MM-yyyy")
+        self.end_date_input.setStyleSheet("font-size: 16px; padding: 5px;")
+
+        self.search_button = QPushButton('Поиск', self)
+        self.search_button.clicked.connect(self.search_data)
+        self.search_button.setStyleSheet("""
+            QPushButton {
+                background-color: #007bff;
+                color: white;
+                padding: 10px;
+                font-size: 16px;
+                border: none;
+                border-radius: 5px;
+            }
+            QPushButton:hover {
+                background-color: #0056b3;
+            }
+        """)
+
+        self.analytics_table = QTableWidget(self)
+        self.analytics_table.setColumnCount(2)
+        self.analytics_table.setHorizontalHeaderLabels(["Время замера", "Продолжительность"])
+        self.analytics_table.setRowCount(0)
+
+        layout.addWidget(self.start_date_label)
+        layout.addWidget(self.start_date_input)
+        layout.addWidget(self.end_date_label)
+        layout.addWidget(self.end_date_input)
+        layout.addWidget(self.search_button)
+        layout.addWidget(self.analytics_table)
+
+        self.analytics_tab.setLayout(layout)
+
+    def search_data(self):
+        start_date = self.start_date_input.date().toString("dd.MM.yy")
+        end_date = self.end_date_input.date().toString("dd.MM.yy")
+
+        if not start_date or not end_date:
+            QMessageBox.warning(self, 'Ошибка', 'Введите обе даты.')
+            return
+
+        self.analytics_table.setRowCount(0)
+        conn = sqlite3.connect('app_tracker.db')
+        cursor = conn.cursor()
+
+        cursor.execute('''
+                SELECT start_time, end_time, total_time FROM app_usage 
+                WHERE start_time >= ? AND end_time <= ?
+            ''', (start_date + " 00:00:00", end_date + " 23:59:59"))
+
+        rows = cursor.fetchall()
+
+        total_time_data = []
+        labels = []
+
+        for row in rows:
+            start_time, end_time, total_time = row
+            row_position = self.analytics_table.rowCount()
+            self.analytics_table.insertRow(row_position)
+            self.analytics_table.setItem(row_position, 0, QTableWidgetItem(start_time + " - " + end_time))
+            self.analytics_table.setItem(row_position, 1, QTableWidgetItem(str(total_time)))
+
+            labels.append(start_time + " - " + end_time)
+            total_time_data.append(self.time_to_seconds(total_time))
+
+        conn.close()
+
+        if total_time_data:
+            plt.figure(figsize=(10, 6))
+            plt.bar(labels, total_time_data, color='skyblue')
+            plt.xlabel('Промежутки времени')
+            plt.ylabel('Общее время (секунды)')
+            plt.title('Столбчатая диаграмма общего времени по промежуткам')
+            plt.xticks(rotation=45, ha='right')
+            plt.tight_layout()
+            plt.show()
+
 
     def time_to_seconds(self, time_str):
         hours, minutes, seconds = 0, 0, 0
@@ -333,11 +431,13 @@ class MeasurementApp(QWidget):
         cursor.execute('''
             INSERT INTO app_usage (start_time, end_time, total_time, results)
             VALUES (?, ?, ?, ?)
-        ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time, json.dumps(results)))
+        ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time,
+              json.dumps(results)))
 
         conn.commit()
         conn.close()
         print("Данные сохранены в базу данных.")
+
 
 class MainApp:
     def __init__(self):
@@ -352,6 +452,7 @@ class MainApp:
 
     def run(self):
         sys.exit(self.app.exec_())
+
 
 if __name__ == '__main__':
     initialize_database()
