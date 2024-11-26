@@ -210,6 +210,35 @@ class MeasurementApp(QWidget):
             plt.tight_layout()
             plt.show()
 
+        self.generate_popularity_chart(start_date, end_date)
+
+    def generate_popularity_chart(self, start_date, end_date):
+        rows = execute_query('''
+                       SELECT results FROM app_usage 
+                       WHERE start_time >= ? AND end_time <= ?
+                   ''', (start_date + " 00:00:00", end_date + " 23:59:59"))
+
+        app_usage = {}
+
+        for row in rows:
+            results = json.loads(row[0])
+            for app, time in results.items():
+                if app not in app_usage:
+                    app_usage[app] = 0
+                app_usage[app] += self.time_to_seconds(time)
+
+        apps = list(app_usage.keys())
+        usage_times = list(app_usage.values())
+
+        plt.figure(figsize=(10, 6))
+        plt.bar(apps, usage_times, color='lightgreen')
+        plt.xlabel('Приложения')
+        plt.ylabel('Общее время использования (сек)')
+        plt.title('Наиболее популярные приложения по времени использования')
+        plt.xticks(rotation=45, ha='right')
+        plt.tight_layout()
+        plt.show()
+
     def time_to_seconds(self, time_str):
         hours, minutes, seconds = 0, 0, 0
         if 'ч' in time_str:
