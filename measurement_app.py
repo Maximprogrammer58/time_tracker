@@ -1,11 +1,11 @@
 import datetime
 import json
+import sqlite3
 import threading
 
-import sqlite3
 import matplotlib.pyplot as plt
 
-from app_tracker import AppTracker
+from tracker import AppTracker, WindowTracker
 from database import execute_query
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
@@ -20,6 +20,7 @@ class MeasurementApp(QWidget):
         super().__init__()
         self.tracker = None
         self.initUI()
+        self.window_tracker = WindowTracker()
         self.timer = QTimer()
         self.data_timer = QTimer()
         self.timer.timeout.connect(self.update_table)
@@ -290,6 +291,7 @@ class MeasurementApp(QWidget):
             self.tracker_thread = threading.Thread(target=self.tracker.start_tracking)
             self.tracker_thread.start()
 
+            self.window_tracker.start_tracking()
             self.timer.start(10000)
             self.data_timer.start(10000)
 
@@ -309,7 +311,9 @@ class MeasurementApp(QWidget):
             self.data_timer.stop()
             results = self.tracker.stop_tracking()
 
-            self.save_to_database(results)
+            visited_apps = self.window_tracker.stop_tracking()
+
+            self.save_to_database(results, visited_apps)
             self.load_data()
 
             self.startButton.setVisible(True)
@@ -317,7 +321,10 @@ class MeasurementApp(QWidget):
             self.tracker_thread.join()
             self.tracker = None
 
-    def save_to_database(self, results):
+    def save_to_database(self, results, visited_apps):
+        conn = sqlite3.connect('app_tracker.db')
+        cursor = conn.cursor()
+
         end_time = datetime.datetime.now()
         total_time = self.tracker.format_time(self.tracker.total_time_seconds)
 
@@ -325,5 +332,16 @@ class MeasurementApp(QWidget):
             INSERT INTO app_usage (start_time, end_time, total_time, results)
             VALUES (?, ?, ?, ?)
         ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time,
-              json.dumps(results)), fetch=False)
+            json.dumps(results)), fetch=False)
+
+        for app, time_spent in visited_apps.items():
+            cursor.execute('''
+                       INSERT INTO active_windows (app_name, time_spent, session_start, session_end)
+                       VALUES (?, ?, ?, ?)
+                   ''', (app, time_spent, self.window_tracker.app_start_time.strftime("%d.%m.%y %H:%M:%S"),
+                         end_time.strftime("%d.%m.%y %H:%M:%S")))
+
+        conn.commit()
+        conn.close()
+
         print("Данные сохранены в базу данных.")

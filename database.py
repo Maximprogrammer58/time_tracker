@@ -13,6 +13,17 @@ def initialize_database():
             results TEXT
         )
     ''')
+
+    cursor.execute('''
+            CREATE TABLE IF NOT EXISTS active_windows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                app_name TEXT,
+                time_spent REAL,
+                session_start TEXT,
+                session_end TEXT
+            )
+        ''')
+
     conn.commit()
     conn.close()
     print("База данных и таблица инициализированы.")
