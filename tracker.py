@@ -17,19 +17,14 @@ class AppTracker:
         self.start_time = datetime.datetime.now()
         self.total_time_seconds = 0
         self.user = os.getlogin()
-        print(self.data_time(), "Старт, пользователь:", self.user)
 
-    def data_time(self):
-        now = datetime.datetime.now()
-        return now.strftime("%d.%m.%y %H:%M:%S")
-
-    def format_time(self, total_seconds):
+    @staticmethod
+    def format_time(total_seconds):
         hours, remainder = divmod(total_seconds, 3600)
         minutes, seconds = divmod(remainder, 60)
         return f"{int(hours)} ч {int(minutes)} мин {int(seconds)} сек"
 
     def print_summary(self):
-        print(self.data_time(), "Цикл остановлен")
         return {app: self.format_time(summ) for app, summ in self.app_summaries.items()}
 
     def track_apps(self):
@@ -76,6 +71,7 @@ class WindowTracker:
 
     def track_active_windows(self):
         self.running = True
+        self.visited_apps = {}
         while self.running:
             active_window = gw.getActiveWindow()
             current_time = datetime.datetime.now()

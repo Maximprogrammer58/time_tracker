@@ -1,6 +1,5 @@
 import datetime
 import json
-import sqlite3
 import threading
 
 import matplotlib.pyplot as plt
@@ -19,8 +18,8 @@ class MeasurementApp(QWidget):
     def __init__(self):
         super().__init__()
         self.tracker = None
+        self.window_tracker = None
         self.initUI()
-        self.window_tracker = WindowTracker()
         self.timer = QTimer()
         self.data_timer = QTimer()
         self.timer.timeout.connect(self.update_table)
@@ -102,8 +101,8 @@ class MeasurementApp(QWidget):
         layout = QVBoxLayout()
 
         self.data_table = QTableWidget(self)
-        self.data_table.setColumnCount(4)
-        self.data_table.setHorizontalHeaderLabels(["Время начала", "Время конца", "Общее время", "Действия"])
+        self.data_table.setColumnCount(5)
+        self.data_table.setHorizontalHeaderLabels(["Время начала", "Время конца", "Общее время", "Действия", "Журнал"])
         self.data_table.setRowCount(0)
 
         self.load_data()
@@ -114,19 +113,23 @@ class MeasurementApp(QWidget):
     def load_data(self):
         self.data_table.setRowCount(0)
 
-        rows = execute_query('SELECT start_time, end_time, total_time, results FROM app_usage')
+        rows = execute_query('SELECT start_time, end_time, total_time, results, visited_apps FROM app_usage')
 
         for row in rows:
-            start_time, end_time, total_time, results = row
+            start_time, end_time, total_time, results, visited_apps = row
             row_position = self.data_table.rowCount()
             self.data_table.insertRow(row_position)
             self.data_table.setItem(row_position, 0, QTableWidgetItem(start_time))
             self.data_table.setItem(row_position, 1, QTableWidgetItem(end_time))
             self.data_table.setItem(row_position, 2, QTableWidgetItem(total_time))
 
-            details_button = QPushButton("Подробнее")
-            details_button.clicked.connect(lambda checked, r=results, t=total_time: self.show_details(r, t))
-            self.data_table.setCellWidget(row_position, 3, details_button)
+            details_button_1 = QPushButton("Подробнее")
+            details_button_1.clicked.connect(lambda checked, r=results, t=total_time: self.show_details(r, t))
+            self.data_table.setCellWidget(row_position, 3, details_button_1)
+
+            journal_button = QPushButton("Журнал")
+            journal_button.clicked.connect(lambda checked, v=visited_apps: self.show_journal(v))
+            self.data_table.setCellWidget(row_position, 4, journal_button)
 
     def init_analytics_tab(self):
         layout = QVBoxLayout()
@@ -282,9 +285,33 @@ class MeasurementApp(QWidget):
         details_dialog.setLayout(layout)
         details_dialog.exec_()
 
+    def show_journal(self, visited_apps):
+        journal_dialog = QDialog(self)
+        journal_dialog.setWindowTitle("Журнал посещенных приложений")
+        journal_dialog.setGeometry(100, 100, 400, 300)
+
+        layout = QVBoxLayout()
+        journal_table = QTableWidget(journal_dialog)
+        journal_table.setColumnCount(2)
+        journal_table.setHorizontalHeaderLabels(["Приложение", "Время использования"])
+        journal_table.setRowCount(0)
+
+        visited_apps_dict = json.loads(visited_apps)
+
+        for app, time in visited_apps_dict.items():
+            row_position = journal_table.rowCount()
+            journal_table.insertRow(row_position)
+            journal_table.setItem(row_position, 0, QTableWidgetItem(app))
+            journal_table.setItem(row_position, 1, QTableWidgetItem(AppTracker.format_time(time)))
+
+        layout.addWidget(journal_table)
+        journal_dialog.setLayout(layout)
+        journal_dialog.exec_()
+
     def startMeasurement(self):
         if self.tracker is None or not self.tracker.running:
             self.tracker = AppTracker()
+            self.window_tracker = WindowTracker()
             self.startButton.setVisible(False)
             self.endButton.setVisible(True)
 
@@ -320,28 +347,14 @@ class MeasurementApp(QWidget):
             self.endButton.setVisible(False)
             self.tracker_thread.join()
             self.tracker = None
+            self.window_tracker = None
 
     def save_to_database(self, results, visited_apps):
-        conn = sqlite3.connect('app_tracker.db')
-        cursor = conn.cursor()
-
         end_time = datetime.datetime.now()
         total_time = self.tracker.format_time(self.tracker.total_time_seconds)
 
         execute_query('''
-            INSERT INTO app_usage (start_time, end_time, total_time, results)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO app_usage (start_time, end_time, total_time, results, visited_apps)
+            VALUES (?, ?, ?, ?, ?)
         ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time,
-            json.dumps(results)), fetch=False)
-
-        for app, time_spent in visited_apps.items():
-            cursor.execute('''
-                       INSERT INTO active_windows (app_name, time_spent, session_start, session_end)
-                       VALUES (?, ?, ?, ?)
-                   ''', (app, time_spent, self.window_tracker.app_start_time.strftime("%d.%m.%y %H:%M:%S"),
-                         end_time.strftime("%d.%m.%y %H:%M:%S")))
-
-        conn.commit()
-        conn.close()
-
-        print("Данные сохранены в базу данных.")
+            json.dumps(results), json.dumps(visited_apps)), fetch=False)

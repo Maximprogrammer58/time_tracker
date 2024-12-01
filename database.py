@@ -10,23 +10,12 @@ def initialize_database():
             start_time TEXT,
             end_time TEXT,
             total_time TEXT,
-            results TEXT
+            results TEXT,
+            visited_apps TEXT
         )
     ''')
-
-    cursor.execute('''
-            CREATE TABLE IF NOT EXISTS active_windows (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                app_name TEXT,
-                time_spent REAL,
-                session_start TEXT,
-                session_end TEXT
-            )
-        ''')
-
     conn.commit()
     conn.close()
-    print("База данных и таблица инициализированы.")
 
 
 def execute_query(query, params=(), fetch=True):
