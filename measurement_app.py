@@ -3,9 +3,11 @@ import json
 import threading
 
 import matplotlib.pyplot as plt
+import requests
 
 from tracker import AppTracker, WindowTracker
 from database import execute_query
+from json_helper import get_values_from_json_file
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
@@ -341,6 +343,7 @@ class MeasurementApp(QWidget):
             visited_apps = self.window_tracker.stop_tracking()
 
             self.save_to_database(results, visited_apps)
+            self.send_data_to_server(results, visited_apps)
             self.load_data()
 
             self.startButton.setVisible(True)
@@ -358,3 +361,25 @@ class MeasurementApp(QWidget):
             VALUES (?, ?, ?, ?, ?)
         ''', (self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"), end_time.strftime("%d.%m.%y %H:%M:%S"), total_time,
             json.dumps(results), json.dumps(visited_apps)), fetch=False)
+
+    def send_data_to_server(self, results, visited_apps):
+        first_name, last_name, email = get_values_from_json_file('user_data.json')
+        end_time = datetime.datetime.now()
+        data = {
+            "first_name": first_name,
+            "last_name": last_name,
+            "start_time": self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"),
+            "end_time": end_time.strftime("%d.%m.%y %H:%M:%S"),
+            "total_time": self.tracker.format_time(self.tracker.total_time_seconds),
+            "results": results,
+            "visited_apps": visited_apps
+        }
+
+        try:
+            response = requests.post('http://localhost:5000/api/data', json=data)
+            if response.status_code == 200:
+                print("Данные успешно отправлены на сервер.")
+            else:
+                print("Ошибка при отправке данных:", response.text)
+        except Exception as e:
+            print("Ошибка подключения к серверу:", str(e))

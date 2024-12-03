@@ -1,12 +1,10 @@
+import requests
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
     QLabel, QLineEdit, QMessageBox
 )
 
-
-USER_DATABASE = {
-    '': '',
-}
+from json_helper import save_user_data
 
 
 class AuthWindow(QWidget):
@@ -41,7 +39,20 @@ class AuthWindow(QWidget):
     def check_credentials(self):
         username = self.username_input.text()
         password = self.password_input.text()
-        if USER_DATABASE.get(username) == password:
+
+        response = requests.post('http://localhost:5000/api/login', json={
+            'email': username,
+            'password': password
+        })
+
+        if response.status_code == 200:
+            data = response.json()
+            first_name = data.get('first_name')
+            last_name = data.get('last_name')
+            email = username
+
+            save_user_data(first_name, last_name, email)
+
             self.on_login_success()
             self.close()
         else:
