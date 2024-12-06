@@ -7,7 +7,7 @@ import requests
 
 from tracker import AppTracker, WindowTracker
 from database import execute_query
-from json_helper import get_values_from_json_file
+from json_helper import read_json
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
@@ -363,22 +363,24 @@ class MeasurementApp(QWidget):
             json.dumps(results), json.dumps(visited_apps)), fetch=False)
 
     def send_data_to_server(self, results, visited_apps):
-        first_name, last_name, email, boss_token = get_values_from_json_file('user_data.json')
+        settings = read_json("settings.json")
+        api_data = read_json(settings["path_data_file"])
+
         end_time = datetime.datetime.now()
         data = {
-            "first_name": first_name,
-            "last_name": last_name,
-            "email": email,
+            "first_name": api_data["first_name"],
+            "last_name": api_data["last_name"],
+            "email": api_data["email"],
             "start_time": self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"),
             "end_time": end_time.strftime("%d.%m.%y %H:%M:%S"),
             "total_time": self.tracker.format_time(self.tracker.total_time_seconds),
             "results": results,
             "visited_apps": visited_apps,
-            "boss_token": boss_token
+            "boss_token": api_data["boss_token"]
         }
 
         try:
-            response = requests.post('http://localhost:5000/api/data', json=data)
+            response = requests.post(settings["url_server_data"], json=data)
             if response.status_code == 200:
                 print("Данные успешно отправлены на сервер.")
             else:

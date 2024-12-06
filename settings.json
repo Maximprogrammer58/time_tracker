@@ -1,0 +1,5 @@
+{
+  "path_data_file": "user_data.json",
+  "url_server_data": "http://localhost:5000/api/data",
+  "url_server_login": "http://localhost:5000/api/login"
+}

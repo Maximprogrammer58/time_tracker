@@ -1,18 +1,17 @@
 import json
 
 
-def get_values_from_json_file(file_path):
+def read_json(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-        return list(data.values())
+        return json.load(file)
 
 
-def save_user_data(first_name, last_name, email, boss_token):
+def save_user_data(file_path, first_name, last_name, email, boss_token):
     user_data = {
         'first_name': first_name,
         'last_name': last_name,
         'email': email,
         'boss_token': boss_token
     }
-    with open('user_data.json', 'w', encoding='utf-8') as json_file:
+    with open(file_path, 'w', encoding='utf-8') as json_file:
         json.dump(user_data, json_file, ensure_ascii=False, indent=4)

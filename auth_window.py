@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QMessageBox
 )
 
-from json_helper import save_user_data
+from json_helper import save_user_data, read_json
 
 
 class AuthWindow(QWidget):
@@ -40,7 +40,9 @@ class AuthWindow(QWidget):
         username = self.username_input.text()
         password = self.password_input.text()
 
-        response = requests.post('http://localhost:5000/api/login', json={
+        settings = read_json("settings.json")
+
+        response = requests.post(settings['url_server_login'], json={
             'email': username,
             'password': password
         })
@@ -52,7 +54,7 @@ class AuthWindow(QWidget):
             boss_token = data.get('boss_token')
             email = username
 
-            save_user_data(first_name, last_name, email, boss_token)
+            save_user_data(settings["path_data_file"], first_name, last_name, email, boss_token)
 
             self.on_login_success()
             self.close()
