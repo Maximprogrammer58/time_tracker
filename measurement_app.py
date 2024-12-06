@@ -6,9 +6,10 @@ import threading
 import matplotlib.pyplot as plt
 import requests
 
-from modules.tracker import AppTracker, WindowTracker
 from database import execute_query
+from modules.AppTracker import AppTracker
 from modules.json_helper import read_json
+from modules.WindowTracker import WindowTracker
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
@@ -308,7 +309,7 @@ class MeasurementApp(QWidget):
             row_position = journal_table.rowCount()
             journal_table.insertRow(row_position)
             journal_table.setItem(row_position, 0, QTableWidgetItem(app))
-            journal_table.setItem(row_position, 1, QTableWidgetItem(AppTracker.format_time(time)))
+            journal_table.setItem(row_position, 1, QTableWidgetItem(time))
 
         layout.addWidget(journal_table)
         journal_dialog.setLayout(layout)
