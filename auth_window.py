@@ -1,10 +1,14 @@
+import logging
 import requests
+
+from modules.json_helper import save_user_data, read_json
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
     QLabel, QLineEdit, QMessageBox
 )
 
-from json_helper import save_user_data, read_json
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class AuthWindow(QWidget):
@@ -42,21 +46,26 @@ class AuthWindow(QWidget):
 
         settings = read_json("settings.json")
 
-        response = requests.post(settings['url_server_login'], json={
-            'email': username,
-            'password': password
-        })
+        try:
+            response = requests.post(settings['url_server_login'], json={
+                'email': username,
+                'password': password
+            })
 
-        if response.status_code == 200:
-            data = response.json()
-            first_name = data.get('first_name')
-            last_name = data.get('last_name')
-            boss_token = data.get('boss_token')
-            email = username
+            if response.status_code == 200:
+                data = response.json()
+                first_name = data.get('first_name')
+                last_name = data.get('last_name')
+                boss_token = data.get('boss_token')
+                email = username
 
-            save_user_data(settings["path_data_file"], first_name, last_name, email, boss_token)
+                save_user_data(settings["path_data_file"], first_name, last_name, email, boss_token)
 
-            self.on_login_success()
-            self.close()
-        else:
-            QMessageBox.warning(self, 'Ошибка', 'Неверный логин или пароль.')
+                logging.info(f"The user {first_name} {last_name} with {email} has logged into the application")
+
+                self.on_login_success()
+                self.close()
+            else:
+                QMessageBox.warning(self, 'Ошибка', 'Неверный логин или пароль.')
+        except Exception as e:
+            logging.info(f"Error connecting to server: {str(e)}")

@@ -1,19 +1,23 @@
 import datetime
+import logging
 import json
 import threading
 
 import matplotlib.pyplot as plt
 import requests
 
-from tracker import AppTracker, WindowTracker
+from modules.tracker import AppTracker, WindowTracker
 from database import execute_query
-from json_helper import read_json
+from modules.json_helper import read_json
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
     QTabWidget, QDialog, QListWidget, QProgressBar, QListWidgetItem, QDateEdit
 )
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class MeasurementApp(QWidget):
@@ -382,8 +386,8 @@ class MeasurementApp(QWidget):
         try:
             response = requests.post(settings["url_server_data"], json=data)
             if response.status_code == 200:
-                print("Данные успешно отправлены на сервер.")
+                logging.info("Data successfully sent to server")
             else:
-                print("Ошибка при отправке данных:", response.text)
+                logging.info(f"Error sending data: {response.text}")
         except Exception as e:
-            print("Ошибка подключения к серверу:", str(e))
+            logging.info(f"Error connecting to server: {str(e)}")

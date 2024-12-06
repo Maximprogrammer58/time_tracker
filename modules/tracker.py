@@ -1,4 +1,5 @@
 import datetime
+import logging
 import os
 import time
 import threading
@@ -8,6 +9,9 @@ import psutil
 import pygetwindow as gw
 
 from ctypes import wintypes
+
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 class AppTracker:
@@ -47,15 +51,17 @@ class AppTracker:
                 time.sleep(1)
 
         except Exception as e:
-            print(f"Ошибка: {e}")
+            logging.error(f"Error tracking time: {e}")
             self.print_summary()
 
     def start_tracking(self):
         self.running = True
+        logging.info("Start tracking time")
         self.track_apps()
 
     def stop_tracking(self):
         self.running = False
+        logging.info("Finish tracking time")
         return self.print_summary()
 
 
