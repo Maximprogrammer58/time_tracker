@@ -7,11 +7,12 @@ def get_values_from_json_file(file_path):
         return list(data.values())
 
 
-def save_user_data(first_name, last_name, email):
+def save_user_data(first_name, last_name, email, boss_token):
     user_data = {
         'first_name': first_name,
         'last_name': last_name,
-        'email': email
+        'email': email,
+        'boss_token': boss_token
     }
     with open('user_data.json', 'w', encoding='utf-8') as json_file:
         json.dump(user_data, json_file, ensure_ascii=False, indent=4)

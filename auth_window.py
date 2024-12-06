@@ -49,9 +49,10 @@ class AuthWindow(QWidget):
             data = response.json()
             first_name = data.get('first_name')
             last_name = data.get('last_name')
+            boss_token = data.get('boss_token')
             email = username
 
-            save_user_data(first_name, last_name, email)
+            save_user_data(first_name, last_name, email, boss_token)
 
             self.on_login_success()
             self.close()

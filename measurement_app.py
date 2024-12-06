@@ -363,16 +363,18 @@ class MeasurementApp(QWidget):
             json.dumps(results), json.dumps(visited_apps)), fetch=False)
 
     def send_data_to_server(self, results, visited_apps):
-        first_name, last_name, email = get_values_from_json_file('user_data.json')
+        first_name, last_name, email, boss_token = get_values_from_json_file('user_data.json')
         end_time = datetime.datetime.now()
         data = {
             "first_name": first_name,
             "last_name": last_name,
+            "email": email,
             "start_time": self.tracker.start_time.strftime("%d.%m.%y %H:%M:%S"),
             "end_time": end_time.strftime("%d.%m.%y %H:%M:%S"),
             "total_time": self.tracker.format_time(self.tracker.total_time_seconds),
             "results": results,
-            "visited_apps": visited_apps
+            "visited_apps": visited_apps,
+            "boss_token": boss_token
         }
 
         try:
