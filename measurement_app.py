@@ -11,6 +11,7 @@ from modules.AppTracker import AppTracker
 from modules.json_helper import read_json
 from modules.WindowTracker import WindowTracker
 from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import (
     QWidget, QPushButton, QVBoxLayout,
     QLabel, QTableWidget, QTableWidgetItem, QMessageBox,
@@ -36,6 +37,7 @@ class MeasurementApp(QWidget):
         self.setWindowTitle('Замер времени')
         self.setGeometry(100, 100, 800, 600)
         self.setStyleSheet("background-color: #ffffff;")
+        self.setWindowIcon(QIcon('static/images/time.png'))
 
         self.tabs = QTabWidget(self)
         self.measurement_tab = QWidget()
@@ -295,13 +297,15 @@ class MeasurementApp(QWidget):
     def show_journal(self, visited_apps):
         journal_dialog = QDialog(self)
         journal_dialog.setWindowTitle("Журнал посещенных приложений")
-        journal_dialog.setGeometry(100, 100, 400, 300)
+        journal_dialog.setGeometry(100, 100, 800, 700)
 
         layout = QVBoxLayout()
         journal_table = QTableWidget(journal_dialog)
         journal_table.setColumnCount(2)
         journal_table.setHorizontalHeaderLabels(["Приложение", "Время использования"])
         journal_table.setRowCount(0)
+        journal_table.setColumnWidth(0, 500)
+        journal_table.setColumnWidth(1, 150)
 
         visited_apps_dict = json.loads(visited_apps)
 

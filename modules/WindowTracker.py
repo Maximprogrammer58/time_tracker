@@ -27,7 +27,6 @@ class WindowTracker:
                 app_title = self.clean_string(active_window.title)
 
                 if app_title != self.current_app:
-                    # Если приложение изменилось, сохраняем время для предыдущего приложения
                     if self.current_app:
                         elapsed_time = (current_time - self.app_start_time).total_seconds()
                         if self.current_app in self.visited_apps:
@@ -37,7 +36,6 @@ class WindowTracker:
 
                     self.current_app = app_title
                     self.app_start_time = current_time
-
             time.sleep(1)
 
     def start_tracking(self):
