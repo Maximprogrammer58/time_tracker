@@ -340,7 +340,7 @@ class MeasurementApp(QWidget):
             for app, time in summaries.items():
                 row_position = self.table.rowCount()
                 self.table.insertRow(row_position)
-                self.table.setItem(row_position, 0, QTableWidgetItem(app))
+                self.table.setItem(row_position, 0, QTableWidgetItem(app))  # Название приложения без ".exe"
                 self.table.setItem(row_position, 1, QTableWidgetItem(time))
 
     def endMeasurement(self):

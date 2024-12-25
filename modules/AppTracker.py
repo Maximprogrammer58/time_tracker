@@ -26,7 +26,7 @@ class AppTracker:
         return f"{int(hours)} ч {int(minutes)} мин {int(seconds)} сек"
 
     def print_summary(self):
-        return {app: self.format_time(summ) for app, summ in self.app_summaries.items()}
+        return {app.replace('.exe', ''): self.format_time(summ) for app, summ in self.app_summaries.items()}
 
     def track_apps(self):
         try:
